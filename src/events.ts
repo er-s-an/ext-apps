@@ -72,8 +72,9 @@ export class EventDispatcher<EventMap extends Record<string, unknown>> {
       | EventSlot<EventMap[K]>
       | undefined;
     if (!slot) return;
+    const listeners = [...slot.listeners];
     slot.onHandler?.(params);
-    for (const l of [...slot.listeners]) l(params);
+    for (const l of listeners) l(params);
   }
 
   private _ensureEventSlot<K extends keyof EventMap>(

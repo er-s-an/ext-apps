@@ -57,6 +57,42 @@ describe("EventDispatcher", () => {
     expect(calls).toEqual(["first", "second", "first"]);
   });
 
+  it("defers listeners added by the singular handler until the next dispatch", () => {
+    const dispatcher = new EventDispatcher<TestEventMap>();
+    const calls: string[] = [];
+    const listener = () => calls.push("listener");
+
+    dispatcher.setHandler("change", () => {
+      calls.push("handler");
+      dispatcher.addEventListener("change", listener);
+      dispatcher.setHandler("change", undefined);
+    });
+
+    dispatcher.dispatch("change", { value: 1 });
+    expect(calls).toEqual(["handler"]);
+
+    dispatcher.dispatch("change", { value: 2 });
+    expect(calls).toEqual(["handler", "listener"]);
+  });
+
+  it("keeps listeners removed by the singular handler in the current dispatch", () => {
+    const dispatcher = new EventDispatcher<TestEventMap>();
+    const calls: string[] = [];
+    const listener = () => calls.push("listener");
+
+    dispatcher.addEventListener("change", listener);
+    dispatcher.setHandler("change", () => {
+      calls.push("handler");
+      dispatcher.removeEventListener("change", listener);
+    });
+
+    dispatcher.dispatch("change", { value: 1 });
+    expect(calls).toEqual(["handler", "listener"]);
+
+    dispatcher.dispatch("change", { value: 2 });
+    expect(calls).toEqual(["handler", "listener", "handler"]);
+  });
+
   it("warns only when one singular handler replaces another", () => {
     const dispatcher = new EventDispatcher<TestEventMap>();
     const warn = spyOn(console, "warn").mockImplementation(() => {});
