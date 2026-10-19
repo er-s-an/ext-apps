@@ -565,6 +565,18 @@ export class App extends Protocol<BaseContext> {
     this.setEventHandler("hostcontextchanged", undefined);
   }
 
+  private _autoResizeCleanup?: () => void;
+
+  protected override _onclose(): void {
+    const cleanup = this._autoResizeCleanup;
+    this._autoResizeCleanup = undefined;
+    try {
+      cleanup?.();
+    } finally {
+      super._onclose();
+    }
+  }
+
   /** @internal */
   protected buildContext(ctx: BaseContext): BaseContext {
     return ctx;
@@ -2045,7 +2057,7 @@ export class App extends Protocol<BaseContext> {
       this._initializedSent = true;
 
       if (this.options?.autoResize) {
-        this.setupSizeChangedNotifications();
+        this._autoResizeCleanup = this.setupSizeChangedNotifications();
       }
     } catch (error) {
       // Disconnect if initialization fails.

@@ -234,6 +234,43 @@ describe("App base MCP SDK v2 Protocol migration", () => {
     expect(setupCalls).toBe(1);
   });
 
+  for (const closingSide of ["app", "server"] as const) {
+    it(`cleans up automatic resize when ${closingSide} closes`, async () => {
+      const app = new App({ name: "view-app", version: "1.0.0" });
+      let activeObservers = 0;
+      let cleanupCalls = 0;
+      app.setupSizeChangedNotifications = () => {
+        activeObservers += 1;
+        return () => {
+          activeObservers -= 1;
+          cleanupCalls += 1;
+        };
+      };
+      let closeCallbacks = 0;
+      app.onclose = () => {
+        closeCallbacks += 1;
+      };
+
+      const first = await connectPair(app);
+      connected.push(first);
+      expect(activeObservers).toBe(1);
+      await first[closingSide].close();
+      expect(activeObservers).toBe(0);
+      expect(cleanupCalls).toBe(1);
+      expect(closeCallbacks).toBe(1);
+      await app.close();
+      expect(cleanupCalls).toBe(1);
+
+      const second = await connectPair(app);
+      connected.push(second);
+      expect(activeObservers).toBe(1);
+      await second[closingSide].close();
+      expect(activeObservers).toBe(0);
+      expect(cleanupCalls).toBe(2);
+      expect(closeCallbacks).toBe(2);
+    });
+  }
+
   it("preserves strict late-handler timing errors", async () => {
     const app = new App(
       { name: "view-app", version: "1.0.0" },
